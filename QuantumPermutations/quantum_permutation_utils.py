@@ -32,13 +32,14 @@ SOFTWARE.
 
 
 
+# from tkinter.tix import Tree
 import numpy as np
 from numpy import pi
 import math
 import seaborn as sns
 from IPython.display import Image
 import matplotlib.pyplot as plt
-from typing import Union, Iterable, Optional
+from typing import Mapping, Union, Iterable, Optional
 
 from qiskit import *
 from qiskit.circuit.library import *
@@ -61,7 +62,7 @@ aer = Aer.get_backend('aer_simulator')
 ##################################################################################################
 
 
-def measure_and_plot(qc: QuantumCircuit, shots:int= 1024, show_counts:bool= False, return_counts:bool= False, measure_ancilla: bool = False, decimal_count_keys:bool = True , ancilla_specifier:Union[int, list, str] = 'all'):
+def measure_and_plot(qc: QuantumCircuit, shots:int= 1024, show_counts:bool= False, return_counts:bool= False, measure_cntrls: bool = False, decimal_count_keys:bool = True , cntrl_specifier:Union[int, list, str] = 'all'):
     """ Measure and plot the state of the data registers, optionally measure the control ancillas, without modifying the original circuit.
         
         ARGS:
@@ -75,22 +76,22 @@ def measure_and_plot(qc: QuantumCircuit, shots:int= 1024, show_counts:bool= Fals
             show_counts : 'bool' 
                            print the counts dictionary
 
-            measure_ancilla : 'bool' 
+            measure_cntrls : 'bool' 
                              indicates whether to measure the control ancilla registers.
             
             return_counts : 'bool'
                             returns the counts obtained if True, else retruns the histogram plot
 
-            measure_ancilla: 'bool'
+            measure_cntrls: 'bool'
                              indicates whether to measure the controll ancill qubits
                 
             decimal_count_keys: 'bool'
                                 if 'True' converts the binary state of the controll ancilllas to integer represntation
 
-            ancilla_specifier : 'int' 
+            cntrl_specifier : 'int' 
                                 inidicates whihch of the control registers to meausure, 
-                                for eg. ancilla_specifier= 1 refers to the first control ancilla
-                                ancilla_specifier= 'all' refers to all the ancillas                                                           
+                                for eg. cntrl_specifier= 2 refers to the first control ancilla cntrl_2
+                                cntrl_specifier= 'all' refers to all the ancillas                                                           
         RETURNS:
         -------
             plots histogram over the computational basis states
@@ -101,27 +102,27 @@ def measure_and_plot(qc: QuantumCircuit, shots:int= 1024, show_counts:bool= Fals
     qc_m.add_register(creg)
     qc_m.measure(qc_m.qregs[0], creg)
 
-    if measure_ancilla== True:
+    if measure_cntrls== True:
 
-        if isinstance(ancilla_specifier, int):
+        if isinstance(cntrl_specifier, int):
             print('int')##cflag
-            if ancilla_specifier > len(qc_m.qregs) or ancilla_specifier < 1: raise ValueError(" 'ancilla_specifier' should be less than no. of control registers and greater than 0")
+            if cntrl_specifier > len(qc_m.qregs) or cntrl_specifier < 1: raise ValueError(" 'cntrl_specifier' should be less than no. of control registers and greater than 0")
 
-            creg_cntrl = ClassicalRegister(len(qc_m.qregs[ancilla_specifier]))
+            creg_cntrl = ClassicalRegister(len(qc_m.qregs[cntrl_specifier-1]))
             qc_m.add_register(creg_cntrl)
-            qc_m.measure(qc_m.qregs[ancilla_specifier], creg_cntrl )
+            qc_m.measure(qc_m.qregs[cntrl_specifier-1], creg_cntrl )
 
-        elif isinstance(ancilla_specifier, list ):
+        elif isinstance(cntrl_specifier, list ):
             print('list')##cflag
-            for ancilla in ancilla_specifier:
+            for ancilla in cntrl_specifier:
 
                 if ancilla > len(qc_m.qregs) or ancilla < 1: raise ValueError(" 'ancilla' should be less than no. of control registers and greater than 0")
 
-                creg_cntrl = ClassicalRegister(len(qc_m.qregs[ancilla]))
+                creg_cntrl = ClassicalRegister(len(qc_m.qregs[ancilla-1]))
                 qc_m.add_register(creg_cntrl)
-                qc_m.measure(qc_m.qregs[ancilla], creg_cntrl )
+                qc_m.measure(qc_m.qregs[ancilla-1], creg_cntrl )
 
-        elif isinstance(ancilla_specifier, str) and ancilla_specifier== "all":
+        elif isinstance(cntrl_specifier, str) and cntrl_specifier== "all":
             print('str')##cflag
             for reg in qc_m.qregs[1:] :
                 creg = ClassicalRegister(len(reg))
@@ -230,8 +231,60 @@ def append_permutation_operator(permutation_operator:int, power:int, qc:QuantumC
     bit_conditional(power, qc, control)
 
 
+def cntrl_to_operator_map( cntrls:list ):
+    """ Generates a mapping dictionary between the control registers and the permutation operators """
+    mapping = {}
+    for index, cntrl in enumerate(cntrls):
+        mapping[cntrl] = index + 2 
+    
+    return mapping
 
 
+
+
+def key_to_dict(str):
+    """ Generate a dictionary mapping control_registers to their corresponding powers to be used in 'permute_using_key'
+    """
+
+def permute_using_key(permutation_key:dict, qreg:QuantumRegister, qc:QuantumCircuit, mapping:dict, insert_barriers= True):
+    """ Function to genreate a particular permutation based upon the permutation key 
+
+        ARGS:
+        ----
+
+            permutation_key : [dict]
+                            A dictionary containing mapping (cntrl_ancilla, power) pairs. 
+                            Eg. {cntrl_1: 1, cntrl_2: 0,  . . . cntrl_n: 4 }
+            
+            qreg : [QuantumRegister]
+                 Pass the QuantumRegister containing the message qubits.
+            
+            qc : [QuantumCircuit]
+                Pass the QuantumCircuit 
+            
+            mapping: [dict]
+                    Dictionary to map control registers to permutation operators as
+                    generated by `cntrl_to_operator_map`
+        
+        RETURNS:
+        -------
+
+                `QuantumCircuit`
+            
+    """
+    
+    for cntrl in permutation_key.keys() :
+        power = permutation_key[cntrl]
+        permutation_size = mapping[cntrl]
+        operator = generate_permutation_operators(mapping[cntrl] , power)
+
+        bit_conditional(power, qc, cntrl)
+        qc.append( operator.control(len(cntrl)), [ cntrl[i] for i in range(len(cntrl))  ] + [ qreg[i] for i in range(permutation_size) ] )
+        bit_conditional(power, qc, cntrl)
+        if insert_barriers: qc.barrier()
+
+    
+    return qc
 
 
 
