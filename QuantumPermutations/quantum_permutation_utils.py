@@ -136,9 +136,10 @@ def measure_and_plot(qc: QuantumCircuit, shots:int= 1024, show_counts:bool= Fals
         counts_m = {}
         for key in counts.keys():
             split_key = key.split(' ')
-            key_m = ''
+            key_m = 'key: '
             for string in split_key[:-1]:
                 key_m+= str(int(string, 2)) + ' '
+            key_m += '-> '
             key_m += split_key[-1][::-1] ##to-check
             counts_m[key_m] = counts[key]
         counts = counts_m
@@ -274,7 +275,7 @@ def permute_using_key(permutation_key:dict, qreg:QuantumRegister, qc:QuantumCirc
 
     for cntrl in permutation_key.keys() :
 
-        print('cntrl:', cntrl)
+        # print('cntrl:', cntrl)
 
         power = permutation_key[cntrl]
         permutation_size = mapping[cntrl]
