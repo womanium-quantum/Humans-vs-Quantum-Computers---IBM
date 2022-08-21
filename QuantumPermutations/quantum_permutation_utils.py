@@ -157,26 +157,26 @@ def measure_and_plot(qc: QuantumCircuit, shots:int= 1024, show_counts:bool= Fals
 
 
 
-def bit_conditional( num: int, qc: QuantumCircuit, register: QuantumRegister): ## @helper_function
+def bit_conditional( num: int, qc: QuantumCircuit, cntrl: QuantumRegister): ## @helper_function
     """ helper function to assist the conditioning of ancillas 
     
         ARGS:
         ----
             num : the integer to be conditioned upon 
             qc : QuantumCircuit of the original circuit
-            register : QuantumRegister corresponding to the ancilla which is conditioned upon 
+            register : QuantumRegister corresponding to the control_ancilla which is conditioned upon 
         
         RETURNS:
         -------
             Works inplace i.e modifies the original circuit 'qc' that was passed """
 
-    n = len(register)
+    n = len(cntrl)
     bin_str = format(num, "b").zfill(n)
-    assert len(bin_str) == len(register)            ## need to assurethe bit ordering covention according tto qiskit's
+    assert len(bin_str) == len(cntrl)            ## need to assurethe bit ordering covention according tto qiskit's
 
     bin_str = bin_str[::-1]                         ## reverse the bit string
     for index, bit in enumerate(bin_str):
-        if bit== '0': qc.x(register[index]) 
+        if bit== '0': qc.x(cntrl[index]) 
         
         
 
@@ -240,8 +240,6 @@ def cntrl_to_operator_map( cntrls:list ):
     return mapping
 
 
-
-
 def key_to_dict(str):
     """ Generate a dictionary mapping control_registers to their corresponding powers to be used in 'permute_using_key'
     """
@@ -273,10 +271,26 @@ def permute_using_key(permutation_key:dict, qreg:QuantumRegister, qc:QuantumCirc
             
     """
     
+
     for cntrl in permutation_key.keys() :
+
+        print('cntrl:', cntrl)
+
         power = permutation_key[cntrl]
         permutation_size = mapping[cntrl]
         operator = generate_permutation_operators(mapping[cntrl] , power)
+
+        ## initiate the control using the permutation ley ##
+        n = len(cntrl)
+        bin_str = format(power, "b").zfill(n)
+        assert len(bin_str) == len(cntrl)            ## need to assurethe bit ordering covention according tto qiskit's
+
+        bin_str = bin_str[::-1]                      ## reverse the bit string
+        for index, bit in enumerate(bin_str):
+            if bit== '1': qc.x(cntrl[index]) 
+        if insert_barriers: qc.barrier()
+
+        ## act the required permutation operators ##
 
         bit_conditional(power, qc, cntrl)
         qc.append( operator.control(len(cntrl)), [ cntrl[i] for i in range(len(cntrl))  ] + [ qreg[i] for i in range(permutation_size) ] )
