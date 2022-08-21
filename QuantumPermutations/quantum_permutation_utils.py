@@ -136,7 +136,8 @@ def measure_and_plot(qc: QuantumCircuit, shots:int= 1024, show_counts:bool= Fals
         counts_m = {}
         for key in counts.keys():
             split_key = key.split(' ')
-            key_m = 'key: '
+            if measure_cntrls: key_m = 'key: '
+            else: key_m = ''
             for string in split_key[:-1]:
                 key_m+= str(int(string, 2)) + ' '
             key_m += '-> '
@@ -214,7 +215,7 @@ def append_permutation_operator(permutation_operator:int, power:int, qc:QuantumC
 
         ARGS:
         ----
-            permutation_operator : index of the permutation operator 
+            permutation_operator : the permutation operator 
             power : power of the permuation operator
             qc: `QuantumCircuit` to which the operator will be appended
             qreg: `QuantumRegister`storing the data 
