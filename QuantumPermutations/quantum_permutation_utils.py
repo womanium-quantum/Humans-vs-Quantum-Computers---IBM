@@ -136,11 +136,12 @@ def measure_and_plot(qc: QuantumCircuit, shots:int= 1024, show_counts:bool= Fals
         counts_m = {}
         for key in counts.keys():
             split_key = key.split(' ')
-            if measure_cntrls: key_m = 'key: '
+            if measure_cntrls:
+                key_m = 'key: '
+                for string in split_key[:-1]:
+                    key_m+= str(int(string, 2)) + ' '
+                key_m += '-> '
             else: key_m = ''
-            for string in split_key[:-1]:
-                key_m+= str(int(string, 2)) + ' '
-            key_m += '-> '
             key_m += split_key[-1][::-1] ##to-check
             counts_m[key_m] = counts[key]
         counts = counts_m
@@ -233,7 +234,7 @@ def append_permutation_operator(permutation_operator:int, power:int, qc:QuantumC
     bit_conditional(power, qc, control)
 
 
-def cntrl_to_operator_map( cntrls:list ):
+def cntrl_to_operator_map( cntrls:list )-> dict:
     """ Generates a mapping dictionary between the control registers and the permutation operators """
     mapping = {}
     for index, cntrl in enumerate(cntrls):
@@ -242,9 +243,13 @@ def cntrl_to_operator_map( cntrls:list ):
     return mapping
 
 
-def key_to_dict(str):
+def key_to_dict(encryption_key:str, controls:list)-> dict :
     """ Generate a dictionary mapping control_registers to their corresponding powers to be used in 'permute_using_key'
     """
+    elements = list(encryption_key[::-1])
+    dictionary = dict( [ ( controls[j], int(element) ) for j, element in enumerate(elements)  ] )
+    return dictionary
+
 
 def permute_using_key(permutation_key:dict, qreg:QuantumRegister, qc:QuantumCircuit, mapping:dict, insert_barriers= True):
     """ Function to genreate a particular permutation based upon the permutation key 
@@ -282,7 +287,7 @@ def permute_using_key(permutation_key:dict, qreg:QuantumRegister, qc:QuantumCirc
         permutation_size = mapping[cntrl]
         operator = generate_permutation_operators(mapping[cntrl] , power)
 
-        ## initiate the control using the permutation ley ##
+        ## initiate the control using the permutation key ##
         n = len(cntrl)
         bin_str = format(power, "b").zfill(n)
         assert len(bin_str) == len(cntrl)            ## need to assurethe bit ordering covention according tto qiskit's
@@ -303,10 +308,28 @@ def permute_using_key(permutation_key:dict, qreg:QuantumRegister, qc:QuantumCirc
     return qc
 
 
-
 ##################################################################################################
                                  ## grover search sub-routines ##
 ##################################################################################################
+
+def grover_retrival_op( encryption_key:dict, controls:list)-> QuantumCircuit:
+
+    good_key = ''
+    for cntrl in controls:
+        if cntrl in encryption_key.keys():
+            power = encryption_key[cntrl]
+            n = len(cntrl)
+            bin_power = format(power, 'b').zfill(n)
+            good_key+= bin_power
+        
+        else :
+            n = len(cntrl)
+            bin_power = '0'*n
+            good_key+= bin_power
+    
+    grover_op = grover([good_key])
+    return grover_op
+
 
 ## initial state preparation ~
 def s_psi0(p):
